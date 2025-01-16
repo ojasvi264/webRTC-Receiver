@@ -3,17 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebRTC Peer 2</title>
+    <title>WebRTC Receiver</title>
     <style>
-      #video2 {
-        width: 640px; /* Set dimensions or let it adapt to the content */
-        height: 480px;
+      #videoGallery {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr); /* 3 columns */
+        grid-template-rows: repeat(3, 1fr);    /* 3 rows */
+        gap: 10px; /* Spacing between the videos */
+        height: 100vh; /* Ensures the gallery takes the full height of the viewport */
       }
+      #videoGallery video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      /* .fullScreenVideo {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+        object-fit: cover;
+      } */
     </style>
   </head>
   <body>
-    <h2>Peer 2</h2>
-    <video id="video2" autoplay playsinline muted></video>
+    <h2>Receiver</h2>
+    <div id="videoGallery" class="gallery"></div>
+    <!-- <div id="fullScreen" class="fullScreenVideo" style="display: none;"></div> -->
     <script src="receiver.js"></script>
   </body>
 </html>
