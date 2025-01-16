@@ -1,23 +1,23 @@
 const signalingServer = new WebSocket("ws://192.168.50.165:8080");
-let localConnection;
+let localConnection = [];
 
 signalingServer.onmessage = (message) => {
   console.log("Message received from signaling server:", message);
   const data = JSON.parse(message.data);
 
   if (data.offer) {
-    console.log("Received an SDP Offer:", data.offer);
-    handleOffer(data.offer);
+    console.log("Received an SDP Offer:", data.offer, data.senderId);
+    handleOffer(data.offer, data.senderId);
   } else if (data.answer) {
-    console.log("Received an SDP Answer:", data.answer);
-    handleAnswer(data.answer);
+    console.log("Received an SDP Answer:", data.answer, data.senderId);
+    handleAnswer(data.answer, data.senderId);
   } else if (data.iceCandidate) {
-    console.log("Received an ICE Candidate:", data.iceCandidate);
-    handleICECandidate(data.iceCandidate);
+    console.log("Received an ICE Candidate:", data.iceCandidate, data.senderId);
+    handleICECandidate(data.iceCandidate, data.senderId);
   }
 };
 
-async function handleOffer(offer) {
+async function handleOffer(offer, senderId) {
   try {
     console.log("Handling received SDP Offer...");
 
@@ -29,30 +29,30 @@ async function handleOffer(offer) {
     localConnection.onicecandidate = (event) => {
       if (event.candidate) {
         console.log("Generated ICE Candidate in response to Offer:", event.candidate);
-        signalingServer.send(JSON.stringify({ iceCandidate: event.candidate }));
+        signalingServer.send(JSON.stringify({ iceCandidate: event.candidate, senderId: senderId}));
       }
     };
 
     // Inside the ontrack handler
     localConnection.ontrack = (event) => {
-      console.log("Received remote stream from Peer 1.");
-      const remoteStream = event.streams[0];
+        if (event.track.kind === 'video') {
+        console.log("Received remote stream from Peer 1.", senderId);
+        const remoteStream = event.streams[0];
+            const videoElement = document.createElement('video');
+            videoElement.id = senderId;
+            videoElement.autoplay = true;
+            videoElement.muted = true;
+            videoElement.controls = true;
+            videoElement.style.cursor = 'pointer'; 
 
-        const videoElement = document.getElementById("video2");
-        // Assign remote stream to video element
-        videoElement.srcObject = remoteStream;
-        console.log(remoteStream.getTracks());       // List all tracks
-        console.log(remoteStream.getVideoTracks()); 
+            // Assign remote stream to video element
+            videoElement.srcObject = remoteStream;
+            videoElement.play();
 
-        console.log("Assigned remote stream to video element.", remoteStream);
+            //Append the video to the gallery
+            document.getElementById('videoGallery').appendChild(videoElement);
 
-        videoElement.onloadedmetadata = () => {
-        
-            videoElement.play().catch((error) => {
-              console.error("Error playing video:", error);
-            });
-    
-        };
+        }
     };
 
     // Set the remote description with the received SDP offer
@@ -69,7 +69,10 @@ async function handleOffer(offer) {
     console.log("Set local description with Answer.");
 
     // Send the answer to signaling server
-    signalingServer.send(JSON.stringify({ answer: answer }));
+    signalingServer.send(JSON.stringify({ answer: answer, senderId: senderId }));
+
+    //Store the peer connection for this sender.
+    localConnection[senderId] = localConnection;
     console.log("Sent SDP Answer to signaling server.");
   } catch (error) {
     console.error("Error during handleOffer:", error);
