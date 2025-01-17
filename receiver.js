@@ -1,4 +1,4 @@
-const signalingServer = new WebSocket("ws://192.168.50.165:8080");
+const signalingServer = new WebSocket("ws://localhost:8080");
 let localConnection = [];
 
 signalingServer.onmessage = (message) => {
