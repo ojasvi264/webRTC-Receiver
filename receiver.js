@@ -21,9 +21,9 @@ async function handleOffer(offer, senderId) {
   try {
     console.log("Handling received SDP Offer...");
 
-    // Create a new RTCPeerConnection for Peer 2
+    // Create a new RTCPeerConnection Receiver
     localConnection = new RTCPeerConnection();
-    console.log("Created RTCPeerConnection for Peer 2.");
+    console.log("Created RTCPeerConnection for Receiver.");
 
     // Handle incoming ICE candidates
     localConnection.onicecandidate = (event) => {
@@ -36,7 +36,7 @@ async function handleOffer(offer, senderId) {
     // Inside the ontrack handler
     localConnection.ontrack = (event) => {
         if (event.track.kind === 'video') {
-        console.log("Received remote stream from Peer 1.", senderId);
+        console.log("Received remote stream from sender.", senderId);
         const remoteStream = event.streams[0];
             const videoElement = document.createElement('video');
             videoElement.id = senderId;
@@ -94,7 +94,7 @@ function handleAnswer(answer) {
   }
 }
 
-// Handle the ICE candidates received from Peer 1
+// Handle the ICE candidates received from Sender
 function handleICECandidate(iceCandidate) {
   try {
     console.log("Adding received ICE Candidate...");
