@@ -6,4 +6,4 @@ This is a Receiver side system, which will display live feed of senders(up to 6 
 2. Then you can connect this Receiver either serving locally or using file path.
 
 > [!IMPORTANT]
-> Since the first connection made to the **Signaling Server** is assigned as a * *Receiver* *. So connect the **Receiver** before making **Sender** connection.
+> Since the first connection made to the **Signaling Server** is assigned as a * *Receiver* *. So connect the **Receiver** before making the **Sender** connection.
