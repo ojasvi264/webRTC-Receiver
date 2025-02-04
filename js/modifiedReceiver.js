@@ -22,94 +22,91 @@ signalingServer.onmessage = (message) => {
 
 async function handleOffer(data) {
     try {
-        const remoteOffer = new RTCSessionDescription(data.offer);
         const senderId = data.senderId;
         const mediaConfig = data.mediaConfig;
-        const videoCodec = mediaConfig.videoCodec;
-        const videoBitrate = mediaConfig.maxVideoBitrate;
-        const audioCodec = mediaConfig.audioCodec;
-        const audioBitrate = mediaConfig.maxAudioBitrate;
+        const senderName = data.senderName;
+
+        const remoteOffer = new RTCSessionDescription(data.offer);
+        
+        // const videoBitrate = mediaConfig.maxVideoBitrate;
+        // const audioBitrate = mediaConfig.maxAudioBitrate;
         
         console.log("Received offer from sender:", remoteOffer);
         console.log("Received media config:", mediaConfig);
 
-        // Store PeerConnection for each sender
-        let peerConnection = new RTCPeerConnection();
-        peerConnections[senderId] = peerConnection;
-        console.log("Created RTCPeerConnection for Sender:", senderId);
-         // Set remote description
+        if (!peerConnections[senderId]) {
+            peerConnections[senderId] = new RTCPeerConnection();
+            console.log("Created RTCPeerConnection for Sender:", senderId);
 
-         // Handle local media streams
-         peerConnection.ontrack = (event) => {
-            console.log("here");
-            if (event.track.kind === 'video') {
-            console.log("Received remote stream from sender.", senderId);
-            const remoteStream = event.streams[0];
-                const videoElement = document.createElement('video');
-                videoElement.id = senderId;
-                videoElement.autoplay = true;
-                videoElement.muted = true;
-                videoElement.controls = true;
-                videoElement.style.cursor = 'pointer'; 
-    
-                // Assign remote stream to video element
-                videoElement.srcObject = remoteStream;
-                videoElement.play();
-    
-                //Append the video to the gallery
-                document.getElementById('videoGallery').appendChild(videoElement);
-    
-            }
-        };
-
-
-         await peerConnection.setRemoteDescription(remoteOffer);
-         console.log("Set remote description.");
-
-         // Handle ICE candidates
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                console.log("Generated ICE Candidate:", event.candidate);
-                signalingServer.send(JSON.stringify({ iceCandidate: event.candidate}));
-            }
-        };
-
-        /*set bitrate and codec*/
-        peerConnection.getTransceivers().forEach((transceiver) => {
-            if (transceiver.receiver && transceiver.receiver.track) {
-                const kind = transceiver.receiver.track.kind;
-                const codecs = RTCRtpReceiver.getCapabilities(kind)?.codecs || [];
-                const bitrateParams = transceiver.sender.getParameters();
-                if (!bitrateParams.encodings) {
-                  bitrateParams.encodings = [{}];
+            // Handle ICE candidates for this sender
+            peerConnections[senderId].onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log("Generated ICE Candidate:", event.candidate);
+                    signalingServer.send(JSON.stringify({
+                        iceCandidate: event.candidate,
+                        senderId: senderId,
+                        type: "receiverIceCandidate"
+                    }));
                 }
+            };
 
-                if (kind === "audio"){
-                    //Set Audio Codec
-                    const preferredAudioCodec = codecs.find(c => c.mimeType === audioCodec);
-                    if(preferredAudioCodec){
-                        transceiver.setCodecPreferences([preferredAudioCodec]);
-                    }else {
-                        console.warn(`Audio codec ${audioCodec} not found.`);
-                    }
-                }     if (kind === "video") {
-                    //Set Video Codec
-                    const preferredVideoCodec = codecs.find(c => c.mimeType === videoCodec);
-                    if (preferredVideoCodec) {
-                        transceiver.setCodecPreferences([preferredVideoCodec]);
-                    }else {
-                        console.warn(`Video codec ${videoCodec} not found.`);
-                    }
+            peerConnections[senderId].ontrack = (event) => {
+                if (event.track.kind === 'video') {
+                console.log("Received remote stream from sender.", senderId);
+                const getSenderNamePTag = document.getElementById('senderName');
+                getSenderNamePTag.innerText = senderName;
+                const remoteStream = event.streams[0];
+                    const videoElement = document.createElement('video');
+                    videoElement.id = senderId;
+                    videoElement.autoplay = true;
+                    videoElement.muted = true;
+                    videoElement.controls = true;
+                    videoElement.style.cursor = 'pointer'; 
+        
+                    // Assign remote stream to video element
+                    videoElement.srcObject = remoteStream;
+                    videoElement.play();
+        
+                    //Append the video to the gallery
+                    document.getElementById('videoGallery').appendChild(videoElement);
+        
                 }
-            }
-        });
+            };
 
- 
-          // Create and send SDP answer
-         const answer = await peerConnection.createAnswer();
-         await peerConnection.setLocalDescription(answer);
-         signalingServer.send(JSON.stringify({ answer: answer}));
-         console.log("Sent SDP Answer.");
+            async function checkReceiverStats(peerConnection) {
+                const stats = await peerConnection.getStats();
+                
+                stats.forEach(report => {
+                    if (report.type === "inbound-rtp" && report.kind === "video") {
+                        console.log("Incoming Video Stream Stats:");
+                        console.log(`- Codec: Payload Type ${report.codecId}`);
+                        console.log(`- Bitrate: ${report.bytesReceived} bytes received`);
+                        console.log(`- Frame Rate: ${report.framesPerSecond} FPS`);
+                        console.log(`- Jitter: ${report.jitter} ms`);
+                        console.log(`- Packets Lost: ${report.packetsLost}`);
+                    }
+            
+                    if (report.type === "codec" && report.mimeType.startsWith("video")) {
+                        console.log(`Video Codec Used: ${report.mimeType} (Payload Type: ${report.payloadType})`);
+                    }
+                });
+            }
+            
+            // Call this function periodically to monitor stats
+            setInterval(() => {
+                checkReceiverStats(peerConnections[senderId]);
+            }, 5000);
+            
+
+            await peerConnections[senderId].setRemoteDescription(remoteOffer);
+            console.log("Set remote description for", senderId);
+
+            // Create and send SDP answer
+            const answer = await peerConnections[senderId].createAnswer();
+            await peerConnections[senderId].setLocalDescription(answer);
+            signalingServer.send(JSON.stringify({ answer: answer, senderId: senderId }));
+            console.log("Sent SDP Answer to", senderId);
+        }
     } catch (error) {
         console.error("Error during handleOffer:", error);
     }
