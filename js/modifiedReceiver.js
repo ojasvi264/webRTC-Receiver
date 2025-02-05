@@ -73,17 +73,51 @@ async function handleOffer(data) {
                 }
             };
 
+            let lastVideoBytesReceived = null;
+            let lastVideoTimestamp = null;
+            let lastAudioBytesReceived = null;
+            let lastAudioTimestamp = null;
             async function checkReceiverStats(peerConnection) {
                 const stats = await peerConnection.getStats();
-                
                 stats.forEach(report => {
+                    if (report.type === "inbound-rtp" && report.kind === "audio") {
+                        if (lastAudioTimestamp !== null && lastAudioBytesReceived !== null) {
+                            const timeDiff = (report.timestamp - lastAudioTimestamp) / 1000; // Convert to seconds
+                            const bytesDiff = report.bytesReceived - lastAudioBytesReceived;
+                            const bitrate = (bytesDiff * 8) / timeDiff;
+
+                            console.log("Incoming Audio Stream Stats:");
+                            console.log(`- Bitrate: ${bitrate.toFixed(2)} bps (${(bitrate / 1000).toFixed(2)} kbps)`);
+                            console.log(`- Packets Received: ${report.packetsReceived}`);
+                            console.log(`- Concealed Samples: ${report.concealedSamples}`);
+                            console.log(`- Total Samples Received: ${report.totalSamplesReceived}`);
+                            console.log(`- Total Samples Duration: ${report.totalSamplesDuration.toFixed(2)} s`);
+                        }
+                        lastAudioBytesReceived = report.bytesReceived;
+                        lastAudioTimestamp = report.timestamp;
+                    }
+            
+                    if (report.type === "codec" && report.mimeType.startsWith("audio")) {
+                        console.log(`Audio Codec Used: ${report.mimeType} (Payload Type: ${report.payloadType})`);
+                    }
+
                     if (report.type === "inbound-rtp" && report.kind === "video") {
-                        console.log("Incoming Video Stream Stats:");
-                        console.log(`- Codec: Payload Type ${report.codecId}`);
-                        console.log(`- Bitrate: ${report.bytesReceived} bytes received`);
-                        console.log(`- Frame Rate: ${report.framesPerSecond} FPS`);
-                        console.log(`- Jitter: ${report.jitter} ms`);
-                        console.log(`- Packets Lost: ${report.packetsLost}`);
+                        if (lastVideoTimestamp !== null && lastVideoBytesReceived !== null) {
+                            const timeDiff = (report.timestamp - lastVideoTimestamp) / 1000; // Convert to seconds
+                            const bytesDiff = report.bytesReceived - lastVideoBytesReceived;
+                            const bitrate = (bytesDiff * 8) / timeDiff;
+
+                            console.log("Incoming Video Stream Stats:");
+                            console.log(`- Codec: Payload Type ${report.codecId}`);
+                            console.log(`- Bytes Received: ${report.bytesReceived} bytes received`);
+                            console.log(`- Bitrate: ${bitrate.toFixed(2)} bps (${(bitrate / 1000).toFixed(2)} kbps)`);
+                            console.log(`- Frame Rate: ${report.framesPerSecond} FPS`);
+                            console.log(`- Jitter: ${report.jitter} ms`);
+                            console.log(`- Packets Lost: ${report.packetsLost}`);
+                        }
+                        // Update values for the next iteration
+                        lastVideoBytesReceived = report.bytesReceived;
+                        lastVideoTimestamp = report.timestamp;
                     }
             
                     if (report.type === "codec" && report.mimeType.startsWith("video")) {
